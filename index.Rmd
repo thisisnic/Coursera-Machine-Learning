@@ -1,0 +1,39 @@
+# Practical Machine Learning Course Project
+
+Load the caret package and the data files.  Split into a testing and training set.
+```{r}
+library(caret)
+train=read.csv(file="train.csv", na.strings=c("NA", "", "#DIV/0!"))
+validate=read.csv(file="test.csv",na.strings=c("NA", "", "#DIV/0!"))
+
+inTrain<-createDataPartition(y=train$classe, p=0.75, list=FALSE)
+training<-train[inTrain,]
+testing<-train[-inTrain,]
+```
+
+Remove the near-zero covariates, remove some messy variables, and remove variables with high numbers of NAs.
+
+```{r}
+nsv<-nearZeroVar(training, saveMetrics=FALSE)
+training2=training[,-nsv]
+training2 <- subset(training2, select=-c(X, user_name, raw_timestamp_part_1, raw_timestamp_part_2, cvtd_timestamp))
+training2<- training2[,colSums(is.na(training2)) < 1]
+```
+
+Set a seed (for reproducibility), and fit a random forests model.  Perform cross-validation by using the trainControl function to do this.
+
+Once this is done, predict values of the testing dataset.
+```{r}
+set.seed(12345)
+tr_ctrl <- trainControl(method = "cv", number = 4, allowParallel = TRUE)
+modFit<-train(classe~., data=training2, method="rf", prof = TRUE, trControl = tr_ctrl)
+predictions<-predict(modFit, newdata=testing)
+```
+Examine the confusion matrix, and evaluate how good our model is.  It is satisfactory, so let's predict our validation set now.
+
+```{r}
+table(predictions,testing$classe)
+confusionMatrix(predictions, testing$classe)
+answers<-predict(modFit, newdata=validate)
+```
+From the confusion matrix above, we can see that the out-of-sample-error is 1-0.9978 = 0.0022,so this is a pretty good model for the data
